@@ -25,6 +25,8 @@ import org.springframework.context.annotation.Configuration;
 import org.springframework.core.io.Resource;
 import org.springframework.core.io.ResourceLoader;
 
+import javax.annotation.PostConstruct;
+
 @Configuration
 public class DefaultPravegaService implements PravegaService {
 
@@ -61,11 +63,11 @@ public class DefaultPravegaService implements PravegaService {
     @Autowired
     private ResourceLoader resourceLoader;
 
+    private EventStreamWriter<JsonNode> writer = null;
 
-    @Override
-    public void write() {
-        LOG.info("DefaultPravegaService START");
-
+    @PostConstruct
+    private void postConstructor()
+    {
         try {
             LOG.info("@@@@@@@@@@@@@ URI  @@@@@@@@@@@@@  "+uri);
             URI controllerURI = URI.create(uri);
@@ -81,13 +83,13 @@ public class DefaultPravegaService implements PravegaService {
             ClientConfig clientConfig = ClientConfig.builder()
                     //.credentials(null)
                     .controllerURI(controllerURI)
-                    .trustStore(certAsFile.getPath())
+                    //.trustStore(certAsFile.getPath())
                     .validateHostName(false)
                     .build();
 
 
             StreamManager streamManager = StreamManager.create(clientConfig);
-            
+
             StreamConfiguration streamConfig = StreamConfiguration.builder()
                     .scalingPolicy(ScalingPolicy.byEventRate(
                             target_events_per_sec, scale_factor, 1))
@@ -96,11 +98,24 @@ public class DefaultPravegaService implements PravegaService {
 
             EventStreamClientFactory clientFactory = EventStreamClientFactory.withScope(scope, clientConfig);
             // Create  Pravega event writer
-            EventStreamWriter<JsonNode> writer = clientFactory.createEventWriter(
+            writer = clientFactory.createEventWriter(
                     stream,
                     new JsonNodeSerializer(),
                     EventWriterConfig.builder().build());
-            while(true)
+
+
+        } catch (Exception e) {
+            LOG.error("@@@@@@@@@@@@@ ERROR  @@@@@@@@@@@@@  " + e.getMessage());
+        }
+    }
+
+    @Override
+    public void write() {
+        LOG.info("DefaultPravegaService START");
+
+        try {
+
+           while(true)
             {
                 //  Coverst CSV  data to JSON
                 JsonNode message = new DataGenerator().getE2EvEvent();
@@ -108,7 +123,7 @@ public class DefaultPravegaService implements PravegaService {
                 LOG.info("@@@@@@@@@@@@@ E2Ev  EVENT  @@@@@@@@@@@@@  "+message.toString());
                 final CompletableFuture writeFuture = writer.writeEvent("RoutingKey", message);
                 writeFuture.get();
-                Thread.sleep(10000);
+                //Thread.sleep(10000);
             }
 
         } catch (Exception e) {
