@@ -57,7 +57,8 @@ public class DataGenerator {
         return arr[ThreadLocalRandom.current().nextInt(arr.length)];
     }
 
-    public static void main(String[] args) {
+    //public static void main(String[] args) {
+    public static void getMessageSize(String data) {
 
         JsonNode node = new DataGenerator().getE2EvEvent();
         String message = node.toString();

@@ -16,6 +16,7 @@ import org.slf4j.LoggerFactory;
 import com.fasterxml.jackson.databind.JsonNode;
 
 import java.io.File;
+import java.net.SocketException;
 import java.net.URI;
 import java.util.concurrent.CompletableFuture;
 
@@ -69,21 +70,21 @@ public class DefaultPravegaService implements PravegaService {
     private void postConstructor()
     {
         try {
-            LOG.info("@@@@@@@@@@@@@ URI  @@@@@@@@@@@@@  "+uri);
+            System.out.println("@@@@@@@@@@@@@ URI  @@@@@@@@@@@@@  "+uri);
             URI controllerURI = URI.create(uri);
 
             //Resource resource = resourceLoader.getResource("classpath:certs/dsip-psearch_truststore.jks");
             Resource resource = resourceLoader.getResource("classpath:certs/dsip.crt");
             File certAsFile = resource.getFile();
-            LOG.info("@@@@@@@@@@@@@ certAsFile PATH  @@@@@@@@@@@@@  "+certAsFile.getPath());
-            LOG.info("@@@@@@@@@@@@@ certAsFile exists  @@@@@@@@@@@@@  "+certAsFile.exists());
+            System.out.println("@@@@@@@@@@@@@ certAsFile PATH  @@@@@@@@@@@@@  "+certAsFile.getPath());
+            System.out.println("@@@@@@@@@@@@@ certAsFile exists  @@@@@@@@@@@@@  "+certAsFile.exists());
 
             //setTrustStore(certAsFile.getPath(), "changeit");
 
             ClientConfig clientConfig = ClientConfig.builder()
                     //.credentials(null)
                     .controllerURI(controllerURI)
-                    //.trustStore(certAsFile.getPath())
+                    .trustStore(certAsFile.getPath())
                     .validateHostName(false)
                     .build();
 
@@ -102,16 +103,16 @@ public class DefaultPravegaService implements PravegaService {
                     stream,
                     new JsonNodeSerializer(),
                     EventWriterConfig.builder().build());
-
+            System.out.println("@@@@@@@@@@@@@ Created Pravega Writer  @@@@@@@@@@@@@  "+writer);
 
         } catch (Exception e) {
-            LOG.error("@@@@@@@@@@@@@ ERROR  @@@@@@@@@@@@@  " + e.getMessage());
+            System.out.println("@@@@@@@@@@@@@ Constructor ERROR  @@@@@@@@@@@@@  " + e.getMessage());
         }
     }
 
     @Override
     public void write() {
-        LOG.info("DefaultPravegaService START");
+        System.out.println("DefaultPravegaService START");
 
         try {
 
@@ -121,13 +122,21 @@ public class DefaultPravegaService implements PravegaService {
                 JsonNode message = new DataGenerator().getE2EvEvent();
                 // Deserialize the JSON message.
                 LOG.info("@@@@@@@@@@@@@ E2Ev  EVENT  @@@@@@@@@@@@@  "+message.toString());
+                System.out.println("@@@@@@@@@@@@@ E2Ev  EVENT  @@@@@@@@@@@@@  "+message.toString());
                 final CompletableFuture writeFuture = writer.writeEvent("RoutingKey", message);
                 writeFuture.get();
-                //Thread.sleep(10000);
+                Thread.sleep(10000);
             }
 
-        } catch (Exception e) {
-            LOG.error("@@@@@@@@@@@@@ ERROR  @@@@@@@@@@@@@  " + e.getMessage());
+        }
+    /* catch (SocketException se) {
+        se.printStackTrace();
+         System.out.println("@@@@@@@@@@@@@ SocketException  @@@@@@@@@@@@@  " + se.getMessage());
+        *//* insert your failure processings here *//*
+    }*/
+        catch (Exception e) {
+            e.printStackTrace();
+            System.out.println("@@@@@@@@@@@@@ ERROR  @@@@@@@@@@@@@  " + e.getMessage());
         }
     }
 }
