@@ -3,13 +3,11 @@ package com.dell.sdp.pravega.service;
 import com.dell.sdp.pravega.common.DataGenerator;
 import com.dell.sdp.pravega.common.PravegaProperties;
 import com.dell.sdp.pravega.common.serialization.JsonNodeSerializer;
+import com.dell.sdp.pravega.util.PravegaServiceUtil;
 import io.pravega.client.ClientConfig;
 import io.pravega.client.EventStreamClientFactory;
 import io.pravega.client.admin.StreamManager;
-import io.pravega.client.stream.EventStreamWriter;
-import io.pravega.client.stream.EventWriterConfig;
-import io.pravega.client.stream.ScalingPolicy;
-import io.pravega.client.stream.StreamConfiguration;
+import io.pravega.client.stream.*;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -18,6 +16,7 @@ import com.fasterxml.jackson.databind.JsonNode;
 import java.io.File;
 import java.net.SocketException;
 import java.net.URI;
+import java.time.Duration;
 import java.util.concurrent.CompletableFuture;
 
 import org.springframework.beans.factory.annotation.Autowired;
@@ -25,6 +24,7 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.core.io.Resource;
 import org.springframework.core.io.ResourceLoader;
+import org.springframework.scheduling.annotation.Async;
 
 import javax.annotation.PostConstruct;
 
@@ -64,7 +64,12 @@ public class DefaultPravegaService implements PravegaService {
     @Autowired
     private ResourceLoader resourceLoader;
 
+    @Autowired
+    private PravegaServiceUtil pravegaServiceUtil;
+
     private EventStreamWriter<JsonNode> writer = null;
+
+
 
     @PostConstruct
     private void postConstructor()
@@ -74,27 +79,30 @@ public class DefaultPravegaService implements PravegaService {
             URI controllerURI = URI.create(uri);
 
             //Resource resource = resourceLoader.getResource("classpath:certs/dsip-psearch_truststore.jks");
-            Resource resource = resourceLoader.getResource("classpath:certs/dsip.crt");
+           /* Resource resource = resourceLoader.getResource("classpath:certs/dsip.crt");
             File certAsFile = resource.getFile();
             System.out.println("@@@@@@@@@@@@@ certAsFile PATH  @@@@@@@@@@@@@  "+certAsFile.getPath());
-            System.out.println("@@@@@@@@@@@@@ certAsFile exists  @@@@@@@@@@@@@  "+certAsFile.exists());
+            System.out.println("@@@@@@@@@@@@@ certAsFile exists  @@@@@@@@@@@@@  "+certAsFile.exists());*/
 
             //setTrustStore(certAsFile.getPath(), "changeit");
 
             ClientConfig clientConfig = ClientConfig.builder()
                     //.credentials(null)
                     .controllerURI(controllerURI)
-                    .trustStore(certAsFile.getPath())
+                    //.trustStore(certAsFile.getPath())
                     .validateHostName(false)
                     .build();
 
 
             StreamManager streamManager = StreamManager.create(clientConfig);
 
+            // pravega.retentionPolicy.param=86400000  1 day
             StreamConfiguration streamConfig = StreamConfiguration.builder()
                     .scalingPolicy(ScalingPolicy.byEventRate(
-                            target_events_per_sec, scale_factor, 1))
+                            target_events_per_sec, scale_factor, 5))
+                    .retentionPolicy(RetentionPolicy.byTime(Duration.ofMillis(86400000 * 30)))
                     .build();
+
             streamManager.createStream(scope, stream, streamConfig);
 
             EventStreamClientFactory clientFactory = EventStreamClientFactory.withScope(scope, clientConfig);
@@ -110,22 +118,45 @@ public class DefaultPravegaService implements PravegaService {
         }
     }
 
+    /*@Async
+    public void writeData(JsonNode message) {
+        try {
+
+            final CompletableFuture writeFuture = writer.writeEvent("RoutingKey", message);
+            writeFuture.get();
+            long threadNo = Thread.currentThread().getId();
+
+            System.out.println("@@@@@@@@@@@@@ threadNo  @@@@@@@@@@@@@  " + threadNo);
+
+        } catch (Exception e) {
+                e.printStackTrace();
+                System.out.println("@@@@@@@@@@@@@ ERROR  @@@@@@@@@@@@@  " + e.getMessage());
+            }
+
+    }*/
+
     @Override
+    //@Async
     public void write() {
         System.out.println("DefaultPravegaService START");
 
         try {
 
-           while(true)
+           //while(true)
+            for(int i = 0; i < 250000; i++)
             {
                 //  Coverst CSV  data to JSON
                 JsonNode message = new DataGenerator().getE2EvEvent();
                 // Deserialize the JSON message.
-                LOG.info("@@@@@@@@@@@@@ E2Ev  EVENT  @@@@@@@@@@@@@  "+message.toString());
-                System.out.println("@@@@@@@@@@@@@ E2Ev  EVENT  @@@@@@@@@@@@@  "+message.toString());
-                final CompletableFuture writeFuture = writer.writeEvent("RoutingKey", message);
-                writeFuture.get();
-                Thread.sleep(10000);
+                //LOG.info("COUNT : " + i + "  @@@@@@@@@@@@@ E2Ev  EVENT  @@@@@@@@@@@@@  " + message.toString());
+                System.out.println("COUNT : " + i + "  @@@@@@@@@@@@@ E2Ev  EVENT  @@@@@@@@@@@@@  " + message.toString());
+                pravegaServiceUtil.writeData(writer,message);
+                Thread.sleep(50);
+                //writer.flush();
+                /*final CompletableFuture writeFuture = writer.writeEvent("RoutingKey", message);
+                writeFuture.get();*/
+
+
             }
 
         }

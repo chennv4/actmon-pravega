@@ -1,0 +1,1 @@
+{"realm":"nautilus","auth-server-url":"https://keycloak.dsip2.em.sdp.hop.lab.emc.com/auth","ssl-required":"EXTERNAL","bearer-only":false,"public-client":false,"resource":"demo-pravega","confidential-port":0,"credentials":{"secret":"41d99852-080a-464d-a123-a88092279d22"}}
