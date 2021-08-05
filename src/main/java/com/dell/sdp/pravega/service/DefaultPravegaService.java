@@ -100,7 +100,7 @@ public class DefaultPravegaService implements PravegaService {
             StreamConfiguration streamConfig = StreamConfiguration.builder()
                     .scalingPolicy(ScalingPolicy.byEventRate(
                             target_events_per_sec, scale_factor, 5))
-                    .retentionPolicy(RetentionPolicy.byTime(Duration.ofMillis(86400000 * 30)))
+                    .retentionPolicy(RetentionPolicy.byTime(Duration.ofMillis(86400000 * 3)))
                     .build();
 
             streamManager.createStream(scope, stream, streamConfig);
